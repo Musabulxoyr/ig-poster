@@ -30,7 +30,11 @@ from mutagen.mp3 import MP3
 from PIL import Image, ImageDraw, ImageFont
 
 GEMINI_KEY = os.getenv("GEMINI_API_KEY", "")
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
+def _clean(v: str) -> str:
+    return v.strip().strip("\"'").replace("models/", "").strip()
+
+
+GEMINI_MODEL = _clean(os.getenv("GEMINI_MODEL", "gemini-3.5-flash")) or "gemini-3.5-flash"
 TG_TOKEN = os.getenv("TG_TOKEN", "")
 TG_CHAT_ID = os.getenv("TG_CHAT_ID", "")
 TTS_VOICE = os.getenv("TTS_VOICE", "uz-UZ-MadinaNeural")
@@ -55,8 +59,9 @@ def make_script(topic: str) -> list:
         '[{"title": "...", "voice": "..."}, ...]'
     )
     models = [GEMINI_MODEL] + [
-        m for m in os.getenv("GEMINI_FALLBACK", "").split(",") if m.strip()
+        _clean(m) for m in os.getenv("GEMINI_FALLBACK", "").split(",") if _clean(m)
     ]
+    print("Modellar:", models)
     r = None
     for attempt in range(6):  # retry: 503/429 are usually temporary
         model = models[attempt % len(models)]
