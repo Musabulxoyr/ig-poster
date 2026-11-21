@@ -3,6 +3,7 @@
 Env variables (Railway > Variables):
   GEMINI_API_KEY   Gemini key
   GEMINI_MODEL     default gemini-3.5-flash
+  GEMINI_FALLBACK  optional, comma-separated backup models for retries
   TG_TOKEN         Telegram bot token used to deliver the test video
   TG_CHAT_ID       your Telegram user id (get it from @userinfobot)
   TOPIC            video topic, e.g. "Botda 1 daqiqada prezentatsiya"
@@ -53,19 +54,31 @@ def make_script(topic: str) -> list:
         "va 'voice' (1-2 qisqa gap, ovoz o'qiydi). Faqat JSON qaytar: "
         '[{"title": "...", "voice": "..."}, ...]'
     )
-    url = (
-        "https://generativelanguage.googleapis.com/v1beta/models/"
-        f"{GEMINI_MODEL}:generateContent"
-    )
-    r = requests.post(
-        url,
-        headers={"x-goog-api-key": GEMINI_KEY},
-        json={
-            "contents": [{"parts": [{"text": prompt}]}],
-            "generationConfig": {"responseMimeType": "application/json"},
-        },
-        timeout=90,
-    )
+    models = [GEMINI_MODEL] + [
+        m for m in os.getenv("GEMINI_FALLBACK", "").split(",") if m.strip()
+    ]
+    r = None
+    for attempt in range(6):  # retry: 503/429 are usually temporary
+        model = models[attempt % len(models)]
+        url = (
+            "https://generativelanguage.googleapis.com/v1beta/models/"
+            f"{model}:generateContent"
+        )
+        r = requests.post(
+            url,
+            headers={"x-goog-api-key": GEMINI_KEY},
+            json={
+                "contents": [{"parts": [{"text": prompt}]}],
+                "generationConfig": {"responseMimeType": "application/json"},
+            },
+            timeout=90,
+        )
+        if r.status_code == 200:
+            break
+        if r.status_code not in (429, 500, 502, 503, 504):
+            break
+        print(f"Gemini {r.status_code}, qayta urinish {attempt + 1}/6...")
+        time.sleep(15 * (attempt + 1))
     if r.status_code != 200:
         raise RuntimeError(f"Gemini xato {r.status_code}: {r.text[:200]}")
     text = r.json()["candidates"][0]["content"]["parts"][0]["text"]
