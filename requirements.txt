@@ -1,1 +1,6 @@
 requests
+edge-tts
+Pillow
+imageio-ffmpeg
+mutagen
+ 
