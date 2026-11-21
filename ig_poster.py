@@ -27,7 +27,7 @@ TZ = dt.timezone(dt.timedelta(hours=5))  # Tashkent
 
 IG_TOKEN = os.getenv("IG_TOKEN", "")
 GEMINI_KEY = os.getenv("GEMINI_API_KEY", "")
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
 POST_HOUR = int(os.getenv("POST_HOUR", "19"))
 AI_LABEL = os.getenv("AI_LABEL", "1") == "1"
 DRY_RUN = os.getenv("DRY_RUN", "0") == "1"
@@ -43,10 +43,13 @@ def make_caption(topic: str) -> str:
     )
     url = (
         "https://generativelanguage.googleapis.com/v1beta/models/"
-        f"{GEMINI_MODEL}:generateContent?key={GEMINI_KEY}"
+        f"{GEMINI_MODEL}:generateContent"
     )
     r = requests.post(
-        url, json={"contents": [{"parts": [{"text": prompt}]}]}, timeout=60
+        url,
+        headers={"x-goog-api-key": GEMINI_KEY},
+        json={"contents": [{"parts": [{"text": prompt}]}]},
+        timeout=60,
     )
     r.raise_for_status()
     return r.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
